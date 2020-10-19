@@ -12,10 +12,12 @@ def index():
 def start():
    message = request.args.get('message')
    global ai
+   # 0: white
+   # 1: black
    if message == 'first':
-       ai = Acker()
+       ai = Acker(0)
    else:
-       ai = Acker()
+       ai = Acker(1)
 
    #print(message)
    return message
