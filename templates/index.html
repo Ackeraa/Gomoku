@@ -1,0 +1,240 @@
+﻿<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>五子棋</title>
+    <style type="text/css">
+        canvas {
+            display: block;
+            margin: 50px auto;
+            box-shadow: -2px -2px 2px #EFEFEF, 5px 5px 5px #B9B9B9;
+            cursor: pointer;
+        }
+
+        #btn-wrap {
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+        }
+
+		#btn-wrap div {
+                margin: 0 10px;
+            }
+
+        div > span {
+            display: inline-block;
+            padding: 10px 20px;
+            color: #FFFFFF;
+            background-color: #6495ED;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        div.unable span {
+            background: #D6D6D4;
+            color: #ADACAA;
+        }
+
+        #result-wrap {
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>       
+    <h3 id="result-wrap"></h3>
+    <canvas id="boardDIV" width="600px" height="600px"></canvas>
+    <div id="btn-wrap">
+        <div id="first" class="first">
+            <span>先手</span>
+        </div>
+        <div id="second" class="second">
+            <span>后手</span>
+        </div>
+        <div id="swap" class="swap">
+            <span>换手</span>
+        </div>
+        <div id="restart" class="restart">
+            <span>重开</span>
+        </div>
+    </div>
+
+    <script src="/static/jquery-3.5.1.min.js"></script>
+    <script type="text/javascript">
+        
+        let start = true;
+        let playerMoved = 0
+        let playerColor = 0
+        var board = []; 
+        for (let i = 0; i < 15; i++) {
+            board[i] = [];
+            for (let j = 0; j < 15; j++) {
+                board[i][j] = 0;
+            }
+        }
+
+        let resultTxt = document.getElementById("result-wrap");
+        let boardDIV = document.getElementById("boardDIV");
+        let context = boardDIV.getContext('2d');
+        context.strokeStyle = '#bfbfbf';    
+        window.onload = function () {
+            drawBoard(); 
+        }
+        resultTxt.innerHTML = '游戏开始，请选择先后手';
+        document.getElementById("restart").onclick = function () {                
+            window.location.reload();
+        }
+
+        // First
+        document.getElementById("first").onclick = function () {
+            if (!start) {
+                return;
+            }
+            let message = "first"
+            $.ajax({
+                url: "/start",
+                type: "GET",
+                data: {
+                    message: message
+                },
+                async: false
+                // success: function (data) {
+                //     alert(data)
+                // },
+                // error: function () {
+                //     alert("接收失败")
+                // }
+            })
+            resultTxt.innerHTML = '五子棋';
+            playerMoved = 0;
+            playerColor = 1;
+        }
+
+         // Second
+         document.getElementById("second").onclick = function () {
+            if (!start) {
+                return;
+            }
+            let message = "second"
+            $.ajax({
+                url: "/start",
+                type: "GET",
+                data: {
+                    message: message
+                },
+                async: false
+                // success: function (data) {
+                //     alert(data)
+                // },
+                // error: function () {
+                //     alert("接收失败")
+                // }
+            })
+            resultTxt.innerHTML = '五子棋';
+            playerMoved = 1;
+            playerColor = 0;
+        }
+
+        // Play
+        boardDIV.onclick = function (e) {
+            if (playerMoved) {
+                return;
+            }
+            // Player Move
+            let i = Math.floor(e.offsetX / 40);
+            let j = Math.floor(e.offsetY / 40);
+            if (board[i][j] == 0) {
+                drawPiece(i, j, playerColor);
+                board[i][j] = 1;
+            }
+            playerMoved = 1
+
+            // AI Move
+            let message = i + "," + j;
+            $.ajax({
+                url: "/move",
+                type: "GET",
+                data: {
+                    message: message
+                },
+                async: false,
+                success: function (data) {
+                    message = data
+                },
+                error: function () {
+                    alert("接收失败")
+                }
+            }) 
+            let pos = message.split(",")
+            pos[0]++;
+            pos[1]++;
+            drawPiece(pos[0], pos[1], 1 - playerColor);
+            board[pos[0]][pos[1]] = 1;
+            
+            playerMoved = 0
+        }
+
+        // Draw Board
+        var drawBoard = function () {
+            width = 40
+            for (var i = 0; i < 15; i++) {
+                context.moveTo(20 + i * width, 20);
+                context.lineTo(20 + i * width, 580);
+                context.stroke();
+                context.moveTo(20, 20 + i * width);
+                context.lineTo(580, 20 + i * width);
+                context.stroke();
+            }
+            drawPoint(7, 7);
+            drawPoint(3, 3);
+            drawPoint(3, 11);
+            drawPoint(11, 3);
+            drawPoint(11, 11);
+        }
+
+        // Draw Point
+        var drawPoint = function(i, j){
+            width = 40
+            context.beginPath();
+            context.arc(20 + i * width, 20 + j * width, 5, 0, 2 * Math.PI);
+            context.closePath();
+            context.fill();
+        }
+        
+        // Draw Piece
+        var drawPiece = function (i, j, color) {
+            context.beginPath();
+            width = 40
+            context.arc(20 + i * width, 20 + j * width, 18, 0, 2 * Math.PI);
+            context.closePath();
+            var gradient = context.createRadialGradient(20 + i * width
+                + 2, 20 + j * width - 2, 18, 20 + i * width + 2, 20 + j * width -
+            2, 0);
+            if (color == 1) {
+                gradient.addColorStop(0, '#0a0a0a');
+                gradient.addColorStop(1, '#636766');
+            }
+            else {
+                gradient.addColorStop(0, '#d1d1d1');
+                gradient.addColorStop(1, '#f9f9f9')
+            }
+            context.fillStyle = gradient;
+            context.fill();
+        }
+
+        // Delete Piece
+        var deletePiece = function (i, j) {
+			width = 40
+            context.clearRect((i) * width, (j) * width, width, width);
+            context.beginPath();
+            context.moveTo(20 + i * width, j * width);
+            context.lineTo(20 + i * width, j * width + width);
+            context.moveTo(i * width, j * width + 20);
+            context.lineTo((i + 1) * width, j * width + 20);
+
+            context.stroke();
+        }
+    </script>    
+</body>
+</html>

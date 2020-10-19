@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>五子棋</title>
+    <style type="text/css">
+        canvas {
+            display: block;
+            margin: 50px auto;
+            box-shadow: -2px -2px 2px #EFEFEF, 5px 5px 5px #B9B9B9;
+            cursor: pointer;
+        }
+
+        #btn-wrap {
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+        }
+
+		#btn-wrap div {
+                margin: 0 10px;
+            }
+
+        div > span {
+            display: inline-block;
+            padding: 10px 20px;
+            color: #FFFFFF;
+            background-color: #6495ED;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        div.unable span {
+            background: #D6D6D4;
+            color: #ADACAA;
+        }
+
+        #result-wrap {
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>       
+    <h3 id="result-wrap">Gomoku</h3>
+    <canvas id="chess" width="600px" height="600px"></canvas>
+    <div id="btn-wrap">
+        <div id="restart" class="restart">
+            <span>开始</span>
+        </div>
+        <div id="first" class="first">
+            <span>先手</span>
+        </div>
+        <div id="second" class="second">
+            <span>后手</span>
+        </div>
+        <div id="swap" class="swap">
+            <span>换手</span>
+        </div>
+    </div>
+
+    <script src="/static/jquery-3.5.1.min.js"></script>
+    <script type="text/javascript">
+        var me = false;  //我
+        var start = true;
+        var turn_me = 0, turn_ai = 0;
+        var color_me = 1, color_ai = 2;
+        var over = false;
+        var swap = false;
+        var me_first = true;
+        var _nowi = 0, _nowj = 0; //记录自己下棋的坐标
+        var _compi = 0, _compj = 0; //记录计算机当前下棋的坐标
+        var _myWin = [], _compWin = []; //记录我，计算机赢的情况
+
+        var resultTxt = document.getElementById("result-wrap");
+        var chressBord = []; //棋盘
+        for (var i = 0; i < 15; i++) {
+            chressBord[i] = [];
+            for (var j = 0; j < 15; j++) {
+                chressBord[i][j] = 0;
+            }
+        }
+        //赢法的统计数组
+        var myWin = [];
+        var computerWin = [];
+        //赢法数组
+        var wins = [];
+        for (var i = 0; i < 15; i++) {
+            wins[i] = [];
+            for (var j = 0; j < 15; j++) {
+                wins[i][j] = [];
+            }
+        }
+        var count = 0; //赢法总数
+        //横线赢法
+        for (var i = 0; i < 15; i++) {
+            for (var j = 0; j < 11; j++) {
+                for (var k = 0; k < 5; k++) {
+                    wins[i][j + k][count] = true;
+                }
+                count++;
+            }
+        }
+        //竖线赢法
+        for (var i = 0; i < 15; i++) {
+            for (var j = 0; j < 11; j++) {
+                for (var k = 0; k < 5; k++) {
+                    wins[j + k][i][count] = true;
+                }
+                count++;
+            }
+        }
+        //正斜线赢法
+        for (var i = 0; i < 11; i++) {
+            for (var j = 0; j < 11; j++) {
+                for (var k = 0; k < 5; k++) {
+                    wins[i + k][j + k][count] = true;
+                }
+                count++;
+            }
+        }
+        //反斜线赢法
+        for (var i = 0; i < 11; i++) {
+            for (var j = 14; j > 3; j--) {
+                for (var k = 0; k < 5; k++) {
+                    wins[i + k][j - k][count] = true;
+                }
+                count++;
+            }
+        }
+        // debugger;
+        for (var i = 0; i < count; i++) {
+            myWin[i] = 0;
+            _myWin[i] = 0;
+            computerWin[i] = 0;
+            _compWin[i] = 0;
+        }
+        var chess = document.getElementById("chess");
+        var context = chess.getContext('2d');
+        context.strokeStyle = '#bfbfbf';    //边框颜色
+        window.onload = function () {
+            drawChessBoard(); // 画棋盘
+        }
+        resultTxt.innerHTML = '游戏开始，请选择先后手';
+
+        document.getElementById("restart").onclick = function () {
+            window.location.reload();
+        }
+        //先手
+        document.getElementById("first").onclick = function () {
+            if (!start) {
+                return;
+            }
+
+            var message
+            $.ajax({
+                url: "http://127.0.0.1:5000/start_game",
+                type: "GET",
+                data: {
+                    message: message
+                },
+                async: false
+                //success: function (data) {
+                //    alert(data)
+                //},
+                //error: function () {
+                //    alert("接收失败")
+                //}
+            })
+            me = !me;
+            me_first = true;
+            start = false;
+            resultTxt.innerHTML = '';
+        }
+        //后手
+        document.getElementById("second").onclick = function () {
+            if (!start) {
+                return;
+            }
+
+            var message
+            $.ajax({
+                url: "http://127.0.0.1:5000/start_game",
+                type: "GET",
+                data: {
+                    message: message
+                },
+                async: false
+                //success: function (data) {
+                //    alert(data)
+                //},
+                //error: function () {
+                //    alert("接收失败")
+                //}
+            })
+
+            color_me = 2, color_ai = 1;
+            start = false;
+            me_first = false;
+            resultTxt.innerHTML = '';
+            computerAI(-1, -1);
+        }
+        //换手
+        document.getElementById("swap").onclick = function () {
+            if (swap) {
+                return;
+            }
+            if (me_first) {
+                return;
+            }
+            if (!(turn_me == 1 && turn_ai == 2)) {
+                return;
+            }
+
+            for (var i = 0; i < 15; ++i)
+                for (var j = 0; j < 15; ++j)
+                    if (chressBord[i][j] != 0) {
+                        if (chressBord[i][j] == 1) {
+                            chressBord[i][j] = 2;
+                            minusStep(i, j);
+                            oneStep(i, j, 2);
+                        }
+                        else {
+                            chressBord[i][j] = 1;
+                            minusStep(i, j);
+                            oneStep(i, j, 1);
+                        }
+
+                    }
+
+
+            var tmpt2 = _myWin.concat()
+            _myWin = _compWin.concat()
+            _compWin = tmpt2.concat()
+
+            tmpt2 = myWin.concat()
+            myWin = computerWin.concat()
+            computerWin = tmpt2.concat()
+
+            me = !me
+            swap = true;
+            computerAI(-1, -1);
+
+            return;
+
+        }
+
+        // 我，下棋
+        chess.onclick = function (e) {
+            if (over) {
+                return;
+            }
+            if (!me) {
+                return;
+            }
+
+            ++turn_me;
+            var x = e.offsetX;
+            var y = e.offsetY;
+            var i = Math.floor(x / 30);
+            var j = Math.floor(y / 30);
+            _nowi = i;
+            _nowj = j;
+            if (chressBord[i][j] == 0) {
+                oneStep(i, j, color_me);
+                chressBord[i][j] = color_me; //我，已占位置
+
+                for (var k = 0; k < count; k++) { // 将可能赢的情况都加1
+                    if (wins[i][j][k]) {
+                        // debugger;
+                        myWin[k]++;
+                        _compWin[k] = computerWin[k];
+                        computerWin[k] = 6; //这个位置对方不可能赢了
+                        if (myWin[k] == 5) {
+                            // window.alert('你赢了');
+                            resultTxt.innerHTML = '恭喜，你赢了！';
+                            over = true;
+                        }
+                    }
+                }
+                if (!over) {
+                    me = !me;
+                    computerAI(_nowi, _nowj);
+                }
+            }
+        }
+
+
+        //计算机下棋
+        var computerAI = function (i, j) {
+            ++turn_ai;
+            var message = String(i) + " " + String(j)
+
+            $.ajax({
+                url: "http://127.0.0.1:5000/send_message",
+                type: "GET",
+                data: {
+                    message: message
+                },
+                async: false,
+
+            })
+
+
+            $.getJSON("http://127.0.0.1:5000/change_to_json", async=false,function (data) {
+                var u = 2, v = 2;
+                var tmp = data.message.split(" ")
+
+                u = Number(tmp[0]), v = Number(tmp[1]);
+                //document.write(tmp);               
+                //换手
+                if (turn_ai == 2 && u == -1 && v == -1) {
+                    for (var i = 0; i < 15; ++i)
+                        for (var j = 0; j < 15; ++j)
+                            if (chressBord[i][j] != 0) {
+                                if (chressBord[i][j] == 1) {
+                                    chressBord[i][j] = 2;
+                                    minusStep(i, j);
+                                    oneStep(i, j, 2);
+                                }
+                                else {
+                                    chressBord[i][j] = 1;
+                                    minusStep(i, j);
+                                    oneStep(i, j, 1);
+                                }
+
+                            }
+
+
+                    var tmpt2 = _myWin.concat()
+                    _myWin = _compWin.concat()
+                    _compWin = tmpt2.concat()
+
+                    tmpt2 = myWin.concat()
+                    myWin = computerWin.concat()
+                    computerWin = tmpt2.concat()
+
+                    me = !me
+                    return;
+
+                }
+
+
+                _compi = u;
+                _compj = v;
+                oneStep(u, v, color_ai); chressBord[u][v] = color_ai; //计算机占据位置
+                for (var k = 0; k < count; k++) {
+                    if (wins[u][v][k]) {
+                        computerWin[k]++;
+                        _myWin[k] = myWin[k];
+                        myWin[k] = 6; //这个位置对方不可能赢了
+                        if (computerWin[k] == 5) {
+                            resultTxt.innerHTML = '傻逼';
+                            over = true;
+                        }
+                    }
+                }
+                u = v = 2;
+                if (!over) {
+                    me = !me;
+                }
+            })
+        }
+
+        //绘画棋盘
+        var drawChessBoard = function () {
+            width = 40
+            for (var i = 0; i < 15; i++) {
+                context.moveTo(20 + i * width, 20);
+                context.lineTo(20 + i * width, 580);
+                context.stroke();
+                context.moveTo(20, 20 + i * width);
+                context.lineTo(580, 20 + i * width);
+                context.stroke();
+            }
+            drawPoint(7, 7);
+            drawPoint(3, 3);
+            drawPoint(3, 11);
+            drawPoint(11, 3);
+            drawPoint(11, 11);
+        }
+
+        // Draw point
+        var drawPoint = function(i, j){
+            width = 40
+            context.beginPath();
+            context.arc(20 + i * width, 20 + j * width, 5, 0, 2 * Math.PI);
+            context.closePath();
+            context.fill();
+        }
+        
+        // Draw piece
+        var oneStep = function (i, j, color) {
+            context.beginPath();
+            width = 40
+            context.arc(20 + i * width, 20 + j * width, 18, 0, 2 * Math.PI);
+            context.closePath();
+            var gradient = context.createRadialGradient(20 + i * width
+                + 2, 20 + j * width - 2, 18, 20 + i * width + 2, 20 + j * width -
+            2, 0);
+            if (color == 1) {
+                gradient.addColorStop(0, '#0a0a0a');
+                gradient.addColorStop(1, '#636766');
+            }
+            else {
+                gradient.addColorStop(0, '#d1d1d1');
+                gradient.addColorStop(1, '#f9f9f9')
+            }
+            context.fillStyle = gradient;
+            context.fill();
+        }
+
+        // Delete piece
+        var minusStep = function (i, j) {
+			width = 40
+            context.clearRect((i) * width, (j) * width, width, width);
+            context.beginPath();
+            context.moveTo(20 + i * width, j * width);
+            context.lineTo(20 + i * width, j * width + width);
+            context.moveTo(i * width, j * width + 20);
+            context.lineTo((i + 1) * width, j * width + 20);
+
+            context.stroke();
+        }
+    </script>    
+</body>
+</html>
