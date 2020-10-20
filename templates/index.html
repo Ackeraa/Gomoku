@@ -63,7 +63,7 @@
     <script src="/static/jquery-3.5.1.min.js"></script>
     <script type="text/javascript">
         
-        let start = true;
+        let start = 0;
         let playerMoved = 0
         let playerColor = 0
         var board = []; 
@@ -88,7 +88,7 @@
 
         // First
         document.getElementById("first").onclick = function () {
-            if (!start) {
+            if (start) {
                 return;
             }
             let message = "first"
@@ -107,13 +107,13 @@
                 // }
             })
             resultTxt.innerHTML = '五子棋';
-            playerMoved = 0;
             playerColor = 1;
+            start = 1
         }
 
          // Second
          document.getElementById("second").onclick = function () {
-            if (!start) {
+            if (start) {
                 return;
             }
             let message = "second"
@@ -132,13 +132,15 @@
                 // }
             })
             resultTxt.innerHTML = '五子棋';
-            playerMoved = 1;
             playerColor = 0;
+            drawPiece(7, 7, playerColor ^ 1);
+            board[7][7] = 1;
+            start = 1
         }
 
         // Play
         boardDIV.onclick = function (e) {
-            if (playerMoved) {
+            if (playerMoved || !start) {
                 return;
             }
             // Player Move
@@ -147,11 +149,17 @@
             if (board[i][j] == 0) {
                 drawPiece(i, j, playerColor);
                 board[i][j] = 1;
+            }else{
+                return;
             }
             playerMoved = 1
 
-            // AI Move
             let message = i + "," + j;
+            setTimeout(()=>AImove(message));
+        }
+
+        AImove = function(message){
+            // AI Move
             $.ajax({
                 url: "/move",
                 type: "GET",
@@ -167,12 +175,15 @@
                 }
             }) 
             let pos = message.split(",")
-            pos[0]++;
-            pos[1]++;
-            drawPiece(pos[0], pos[1], 1 - playerColor);
-            board[pos[0]][pos[1]] = 1;
-            
-            playerMoved = 0
+            if (pos[0] == -1){
+                resultTxt.innerHTML = "恭喜你，赢了！"; 
+            }else if (pos[0] == -2){
+                resultTxt.innerHTML = "对不起，你输了！"
+            }else{
+                drawPiece(pos[0], pos[1], playerColor ^ 1);
+                board[pos[0]][pos[1]] = 1;
+                playerMoved = 0
+            }
         }
 
         // Draw Board

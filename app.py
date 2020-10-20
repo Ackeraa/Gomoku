@@ -18,16 +18,18 @@ def start():
        ai = Acker(0)
    else:
        ai = Acker(1)
+       ai.move(-1, -1)
 
    #print(message)
    return message
 
 @app.route('/move', methods=['GET', 'POST'])
 def move():
+    global ai
     message = request.args.get('message')
-    pos = message.split(',')
-    
-    return ai.move(pos)
+    pos = list(map(int, message.split(',')))
+    moveTo = ai.move([pos[1], pos[0]])
+    return str(moveTo[1]) + "," + str(moveTo[0])
 
 if __name__ == '__main__':
     app.run(debug = True)
