@@ -56,30 +56,41 @@ class AlphaBeta(object):
 
         self.board[pos[0]][pos[1]] = self.color ^ 1
         if self.is_someone_win(pos[0], pos[1]):
-            return [-1, -1]
+            return [-1]
+        
+        # Add legal positions.
         self.legal_pos = set()
         for i in range(15):
             for j in range(15):
                 if (self.board[i][j] != -1):
                     self.add_legal_pos((i, j))
 
-        self.fuck = 0
-        self.alphaBeta(self.color, self.depth, -INF, INF)
+        print("Legal positions: ")
+        print(self.legal_pos.items())
 
-        print("---------SIZE:", len(self.legal_pos))
+        self.fuck = 0
+        self.moveTo = [-1, -1]
+        self.alphaBeta(self.color, self.depth, (0, 0), -INF, INF)
+
+        print("---------SIZE:", len(self.legal_pos.items()))
 
         self.board[self.moveTo[0]][self.moveTo[1]] = self.color
         if self.is_someone_win(self.moveTo[0], self.moveTo[1]):
-            return [-2, -2]
+            return [self.moveTo[0], self.moveTo[1], -1]
 
-        print("FUCJJJJJ", self.moveTo, self.fuck)
-        self.evaluate(self.color, 1)
+        print("Player moved:", pos)
+        print("AI moved:", self.moveTo)
+        print("Total steps:", self.fuck)
+        sum1 = self.evaluate(self.color, 1)
+        sum2 = self.evaluate(self.color ^ 1, 1)
+        print("SUM1:", sum1, "SUM2:", sum2)
 
         return self.moveTo
 
     def is_someone_win(self, x, y):
         # Check Column
-        xx, cnt = x, 0
+        xx = x
+        cnt = 0
         while xx < 15 and self.board[xx][y] == self.board[x][y]:
             xx += 1
             cnt += 1
@@ -91,7 +102,8 @@ class AlphaBeta(object):
             return True
         
         # Check Row
-        yy, cnt = y, 0
+        yy = y
+        cnt = 0
         while yy < 15 and self.board[x][yy] == self.board[x][y]:
             yy += 1
             cnt += 1
@@ -103,12 +115,15 @@ class AlphaBeta(object):
             return True
         
         # Check Diagonal
-        xx, yy, cnt = x, y, 0
+        xx = x
+        yy = y
+        cnt = 0
         while xx < 15 and yy < 15 and self.board[xx][yy] == self.board[x][y]:
             xx += 1
             yy += 1
             cnt += 1
-        xx, yy = x - 1, y - 1
+        xx = x - 1
+        yy = y - 1
         while xx >= 0 and yy >= 0 and self.board[xx][yy] == self.board[x][y]:
             xx -= 1
             yy -= 1
@@ -117,12 +132,15 @@ class AlphaBeta(object):
             return True
         
         # Check Back-Diagonal
-        xx, yy, cnt = x, y, 0
+        xx = x
+        yy = y
+        cnt = 0
         while xx >= 0 and yy < 15 and self.board[xx][yy] == self.board[x][y]:
             xx -= 1
             yy += 1
             cnt += 1
-        xx, yy = x + 1, y - 1
+        xx = x + 1
+        yy = y - 1
         while xx < 15 and yy >= 0 and self.board[xx][yy] == self.board[x][y]:
             xx += 1
             yy -= 1
@@ -132,9 +150,20 @@ class AlphaBeta(object):
         return False
         
     def evaluate(self, player, flag):
+        lx = ly = 15
+        rx = ry = 0
+        for ((x, y), z) in self.legal_pos.items():
+            lx = min(lx, x)
+            rx = max(rx, x)
+            ly = min(ly, y)
+            ry = max(ry, y)
+        rx += 1
+        ry += 1
+        print("CCCCCCCCCCCCCCCCCCCCCCCC", lx, rx, ly, ry)
+
         s = row = col = ""
-        for i in range(15):
-            for j in range(15):
+        for i in range(lx, rx):
+            for j in range(ly, ry):
                 # Evaluate Row 
                 if self.board[i][j] == player:
                     row += "o"
@@ -156,8 +185,10 @@ class AlphaBeta(object):
         s = s + row + col
 
         dia1 = dia2 = bdia1 = bdia2 = ""
-        for i in range(15):
-            for j in range(i + 1):
+        for i in range(lx, rx):
+            if i + 1 > ry:
+                break
+            for j in range(ly, i + 1):
                 # Evaluate Diagonal left bottom
                 if self.board[15 - i - 1 + j][j] == player:
                     dia1 += "o"
@@ -199,12 +230,13 @@ class AlphaBeta(object):
 
         s = s + dia1 + dia2 + bdia1 + bdia2
         
-        
         if flag:
             print("dia1:")
             num = 0
-            for i in range(15):
-                for j in range(i + 1):
+            for i in range(lx, rx):
+                if i + 1 > ry:
+                    break
+                for j in range(ly, i + 1):
                     print(bdia1[num], end="")
                     num += 1
                 num += 1
@@ -228,7 +260,13 @@ class AlphaBeta(object):
 
         return sum
 
-    def alphaBeta(self, player, depth, alpha, beta):
+    def alphaBeta(self, player, depth, pos, alpha, beta):
+
+        if pos != (0, 0) and self.is_someone_win(pos[0], pos[1]):
+            if player == self.color:
+                return -1000000
+            else:
+                return 1000000
 
         if depth == 0:
             self.fuck += 1
@@ -236,20 +274,22 @@ class AlphaBeta(object):
             sum2 = self.evaluate(self.color ^ 1, 0)
             #print("SUM1:", sum1)
             #print("SUM2", sum2)
-            return sum1 - 2 * sum2
+            return sum1 - sum2
 
         saved_legal_pos = copy.deepcopy(self.legal_pos)
         if player == self.color:
-            for (x, y) in saved_legal_pos:
+            for ((x, y), z) in saved_legal_pos.items():
                 self.board[x][y] = player
                 # self.legal_pos.remove((x, y))
+                #print(f"depth: {depth}, before add, len(legal_pos): {len(self.legal_pos.items())}")
+                #print(self.legal_pos.items())
                 self.add_legal_pos((x, y))
-                if self.is_someone_win(x, y):
-                    return INF
-                val = self.alphaBeta(player ^ 1, depth - 1, alpha, beta)
+                val = self.alphaBeta(player ^ 1, depth - 1, (x, y), alpha, beta)
                 self.board[x][y] = -1
                 # self.legal_pos.add((x, y))
                 self.remove_legal_pos((x, y))
+                #print(f"depth: {depth}, after removed, len(legal_pos): {len(self.legal_pos.items())}")
+                #print(self.legal_pos.items())
                 if val > alpha:
                     alpha = val
                     if depth == self.depth:
@@ -258,16 +298,16 @@ class AlphaBeta(object):
                     return alpha
             return alpha
         else:
-            for (x, y) in saved_legal_pos:
+            for ((x, y), z) in saved_legal_pos.items():
                 self.board[x][y] = player
                 # self.legal_pos.remove((x, y))
+                #print(f"depth: {depth}, before add, len(legal_pos): {len(self.legal_pos)}")
                 self.add_legal_pos((x, y))
-                if self.is_someone_win(x, y):
-                    return -INF
-                val = self.alphaBeta(player ^ 1, depth - 1, alpha, beta)
+                val = self.alphaBeta(player ^ 1, depth - 1, (x, y), alpha, beta)
                 self.board[x][y] = -1
                 # self.legal_pos.add((x, y))
                 self.remove_legal_pos((x, y))
+                #print(f"depth: {depth}, after removed, len(legal_pos): {len(self.legal_pos)}")
                 if val < beta:
                     beta = val
                 if beta <= alpha:

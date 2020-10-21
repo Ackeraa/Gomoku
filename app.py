@@ -29,7 +29,12 @@ def move():
     message = request.args.get('message')
     pos = list(map(int, message.split(',')))
     moveTo = ai.move([pos[1], pos[0]])
-    return str(moveTo[1]) + "," + str(moveTo[0])
+    if len(moveTo) == 1:
+        return str(moveTo[0])
+    elif len(moveTo) == 2:
+        return str(moveTo[1]) + "," + str(moveTo[0])
+    else:
+        return str(moveTo[1]) + "," + str(moveTo[0]) + ", -1"
 
 if __name__ == '__main__':
     app.run(debug = True)
